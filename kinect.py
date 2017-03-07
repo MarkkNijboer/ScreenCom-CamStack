@@ -7,6 +7,7 @@ from pykinect import nui
 
 import pygame
 from pygame.color import THECOLORS
+from pygame.locals import *
 
 from skeleton import Skeleton
 
@@ -28,20 +29,23 @@ class ScreenComKinect(threading.Thread):
     ##
     def init(self):
         pygame.init()
+        self._init_surface()
         self._init_screen()
         self._init_kinect()
-        self._init_surface()
 
-        self.skeleton = Skeleton()
+        self.skeleton = Skeleton(self)
+
 
     def _init_screen(self):
         depth_winsize = 320, 240
         video_winsize = 640, 480
 
+        pygame.display.set_caption('ScreenCom CamStack')
+
         self.screen_lock = thread.allocate()
         self.screen = pygame.display.set_mode(depth_winsize, 0, 16)
-        pygame.display.set_caption('ScreenCom CamStack')
         self.screen.fill(THECOLORS['black'])
+
 
     def _init_kinect(self):
         self.kinect = nui.Runtime()
@@ -53,6 +57,7 @@ class ScreenComKinect(threading.Thread):
 
         self.kinect.video_stream.open(nui.ImageStreamType.Video, 2, nui.ImageResolution.Resolution640x480, nui.ImageType.Color)
         self.kinect.depth_stream.open(nui.ImageStreamType.Depth, 2, nui.ImageResolution.Resolution320x240, nui.ImageType.Depth)
+
 
     def _init_surface(self):
         if hasattr(ctypes.pythonapi, 'Py_InitModule4'):
@@ -74,8 +79,6 @@ class ScreenComKinect(threading.Thread):
     #   METHODS
     ##
     def frame_ready(self, frame):
-        if self.video_display:
-            return
 
         with self.screen_lock:
             address = self.surface_to_array(self.screen)
@@ -111,6 +114,9 @@ class ScreenComKinect(threading.Thread):
         except:
             # event queue full
             pass
+
+    def get_screen(self):
+        return self.screen
 
 
 
