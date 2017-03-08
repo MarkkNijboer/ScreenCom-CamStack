@@ -45,7 +45,7 @@ class Skeleton():
 
     skeletons = None
     people_in_view = {}
-    skeleton_to_depth_image = None
+    skeleton_to_depth_image = nui.SkeletonEngine.skeleton_to_depth_image
     display_info = None
     kinect = None
 
@@ -100,7 +100,7 @@ class Skeleton():
             self.people_in_view[index]['handPositionRightRight'] = []
 
 
-    def draw_skeletons(self, skeletons):
+    def draw_skeletons(self):
         for index, data in enumerate(self.skeletons):
             skel = {}
             p = data.SkeletonPositions[JointId.Head]
@@ -118,9 +118,9 @@ class Skeleton():
             if(not skel['ps'] or not skel['pShoulderL'] or not skel['pShoulderR'] or not skel['pShoulderCenter'] or not skel['pHandR'] or not skel['pSpine'] or (skel['ps'].group(1) == "0.0" and skel['ps'].group(2) == "0.0") or (skel['pShoulderR'].group(1) == "0.0" and skel['pShoulderR'].group(2) == "0.0") or (skel['pShoulderCenter'].group(1) == "0.0" and skel['pShoulderCenter'].group(2) == "0.0") or (skel['pHandR'].group(1) == "0.0" and skel['pHandR'].group(2) == "0.0") or (skel['pSpine'].group(1) == "0.0" and skel['pSpine'].group(2) == "0.0")):
                 continue;
 
-            self.process_skeleton(index, data, skel)
+            # self.process_skeleton(index, data, skel)
 
-            HeadPos = nui.SkeletonEngine.skeleton_to_depth_image(data.SkeletonPositions[JointId.Head], self.display_info.current_w, self.display_info.current_h)
+            HeadPos = self.skeleton_to_depth_image(data.SkeletonPositions[JointId.Head], self.display_info.current_w, self.display_info.current_h)
             self.draw_skeleton_data(data, index, self.SPINE, 10)
             pygame.draw.circle(self.kinect.get_screen(), self.SKELETON_COLORS[index], (int(HeadPos[0]), int(HeadPos[1])), 20, 0)
 
@@ -146,8 +146,8 @@ class Skeleton():
         for position in itertools.islice(positions, 1, None):
             next_pos = pSkelton.SkeletonPositions[position.value]
 
-            curstart = nui.SkeletonEngine.skeleton_to_depth_image(start_pos, self.display_info.current_w, self.display_info.current_h)
-            curend = nui.SkeletonEngine.skeleton_to_depth_image(next_pos, self.display_info.current_w, self.display_info.current_h)
+            curstart = self.skeleton_to_depth_image(start_pos, self.display_info.current_w, self.display_info.current_h)
+            curend = self.skeleton_to_depth_image(next_pos, self.display_info.current_w, self.display_info.current_h)
 
             pygame.draw.line(screen, self.SKELETON_COLORS[index], curstart, curend, width)
 

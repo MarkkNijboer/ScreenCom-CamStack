@@ -29,11 +29,11 @@ class ScreenComKinect(threading.Thread):
     ##
     def init(self):
         pygame.init()
+        self.skeleton = Skeleton(self)
         self._init_surface()
+        self.screen_lock = thread.allocate()
         self._init_screen()
         self._init_kinect()
-
-        self.skeleton = Skeleton(self)
 
 
     def _init_screen(self):
@@ -43,8 +43,8 @@ class ScreenComKinect(threading.Thread):
         pygame.display.set_caption('ScreenCom CamStack')
 
         self.screen_lock = thread.allocate()
-        self.screen = pygame.display.set_mode(depth_winsize, 0, 16)
-        self.screen.fill(THECOLORS['black'])
+        self.screen = pygame.display.set_mode(video_winsize, 0, 32)
+        self.screen.fill(THECOLORS['white'])
 
 
     def _init_kinect(self):
@@ -52,8 +52,8 @@ class ScreenComKinect(threading.Thread):
         self.kinect.skeleton_engine.enabled = True
         self.kinect.skeleton_frame_ready += self.post_frame
 
-        self.kinect.depth_frame_ready += self.frame_ready
-        self.kinect.video_frame_ready += self.frame_ready
+        self.kinect.depth_frame_ready += self.depth_frame_ready
+        self.kinect.video_frame_ready += self.video_frame_ready
 
         self.kinect.video_stream.open(nui.ImageStreamType.Video, 2, nui.ImageResolution.Resolution640x480, nui.ImageType.Color)
         self.kinect.depth_stream.open(nui.ImageStreamType.Depth, 2, nui.ImageResolution.Resolution320x240, nui.ImageType.Depth)
@@ -78,19 +78,32 @@ class ScreenComKinect(threading.Thread):
     ##
     #   METHODS
     ##
-    def frame_ready(self, frame):
+    def depth_frame_ready(self, frame):
+        if self.video_display:
+            return
 
         with self.screen_lock:
             address = self.surface_to_array(self.screen)
             frame.image.copy_bits(address)
-            arr2d = None
-            if self.video_display:
-                arr2d = (pygame.surfarray.pixels2d(self.screen) >> 3) & 4095
-            else:
-                arr2d = (pygame.surfarray.pixels2d(self.screen) >> 7) & 255
+            arr2d = pygame.surfarray.pixels2d(self.screen)
 
             pygame.surfarray.blit_array(self.screen, arr2d)
-            print(self.skeleton.get_skeletons())
+
+            if self.skeleton.get_skeletons() is not None:
+                self.skeleton.draw_skeletons()
+            pygame.display.update()
+
+
+    def video_frame_ready(self, frame):
+        if not self.video_display:
+            return
+
+        with self.screen_lock:
+            address = self.surface_to_array(self.screen)
+            frame.image.copy_bits(address)
+            arr2d = pygame.surfarray.pixels2d(self.screen)
+            pygame.surfarray.blit_array(self.screen, arr2d)
+
             if self.skeleton.get_skeletons() is not None:
                 self.skeleton.draw_skeletons()
             pygame.display.update()
@@ -98,14 +111,14 @@ class ScreenComKinect(threading.Thread):
 
 
     def surface_to_array(self, surface):
-       buffer_interface = surface.get_buffer()
-       address = ctypes.c_void_p()
-       size = self.Py_ssize_t()
-       self._PyObject_AsWriteBuffer(buffer_interface,
-                              ctypes.byref(address), ctypes.byref(size))
-       bytes = (ctypes.c_byte * size.value).from_address(address.value)
-       bytes.object = buffer_interface
-       return bytes
+        buffer_interface = surface.get_buffer()
+        address = ctypes.c_void_p()
+        size = self.Py_ssize_t()
+        self._PyObject_AsWriteBuffer(buffer_interface,
+                         ctypes.byref(address), ctypes.byref(size))
+        bytes = (ctypes.c_byte * size.value).from_address(address.value)
+        bytes.object = buffer_interface
+        return bytes
 
 
     def post_frame(self, frame):
@@ -131,5 +144,5 @@ class ScreenComKinect(threading.Thread):
                 break
             elif e.type == self.kinect_event:
                 self.skeleton.set_skeletons(e.skeletons)
-                self.skeleton.draw_skeletons(self.skeleton.get_skeletons())
+                self.skeleton.draw_skeletons()
                 pygame.display.update()
